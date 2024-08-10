@@ -87,9 +87,6 @@ lvim.plugins = {
     config = function()
       vim.keymap.set({ "v", "n" }, "<c-.>", require("actions-preview").code_actions)
     end,
-  },
-  {
-    'term-gf.nvim'
   }
 }
 
