@@ -6,6 +6,8 @@
 
 -- lvim.transparent_window = true;
 
+lvim.lsp.installer.setup.automatic_installation = true
+
 vim.opt.relativenumber = true;
 
 lvim.format_on_save = true;
@@ -30,24 +32,82 @@ lvim.keys.normal_mode["<leader>S"] = ":set spell!<cr>"
 -- reopen the last closed buffer
 lvim.keys.normal_mode["<leader>C"] = ":e #<cr>"
 
+-- make gd go to the lsp definition
+lvim.keys.normal_mode["gd"] = "<cmd>lua vim.lsp.buf.definition()<cr>"
+-- and gr to go to the references
+lvim.keys.normal_mode["gr"] = "<cmd>lua vim.lsp.buf.references()<cr>"
+
 lvim.plugins = {
-  -- {
-  --   "zbirenbaum/copilot.lua",
-  --   config = function()
-  --     require("copilot").setup({
-  --       suggestion = {
-  --         enabled = true,
-  --         auto_trigger = true,
-  --         accept_word = "c-l",
-  --         accept_line = "<m-p>"
-  --       }
-  --     })
-  --   end
-  -- },
   {
-    'mrcjkb/haskell-tools.nvim',
-    version = '^3', -- Recommended
-    lazy = false,   -- This plugin is already lazy
+    -- multiple cursors with <c-n>
+    'mg979/vim-visual-multi'
+  },
+  {
+    "lervag/vimtex",
+    lazy = false, -- we don't want to lazy load VimTeX
+    -- tag = "v2.15", -- uncomment to pin to a specific release
+    init = function()
+      -- VimTeX configuration goes here, e.g.
+      vim.g.vimtex_view_method = "skim"
+
+      vim.cmd([[
+        function! s:TexFocusVim() abort
+          silent execute "!open -a iTerm"
+          redraw!
+        endfunction
+
+        augroup vimtex_event_focus
+          au!
+          au User VimtexEventViewReverse call s:TexFocusVim()
+        augroup END
+      ]])
+    end
+  },
+  {
+    -- material theme
+    "marko-cerovac/material.nvim"
+  },
+  {
+    -- code folding
+    "kevinhwang91/nvim-ufo",
+    event = "BufRead",
+    dependencies = { "kevinhwang91/promise-async" },
+    config = function()
+      -- default settings to enable
+      vim.o.foldcolumn = "1"
+      vim.o.foldlevel = 99
+      vim.o.foldlevelstart = 99
+      vim.o.foldenable = true
+
+      -- setup folding source: first lsp, then indent as fallback
+      require("ufo").setup({
+        provider_selector = function(bufnr, filetype, buftype)
+          return { 'lsp', 'indent' }
+        end
+      })
+
+      -- remap keys for "fold all" and "unfold all"
+      vim.keymap.set('n', 'zR', require('ufo').openAllFolds, { desc = "Open all folds" })
+      vim.keymap.set('n', 'zM', require('ufo').closeAllFolds, { desc = "Close all folds" })
+    end,
+  },
+  {
+    "tpope/vim-surround"
+  },
+
+  { "rose-pine/neovim", name = "rose-pine" },
+  {
+    "zbirenbaum/copilot.lua",
+    config = function()
+      require("copilot").setup({
+        suggestion = {
+          enabled = true,
+          auto_trigger = true,
+          accept_word = "c-l",
+          accept_line = "<m-p>"
+        }
+      })
+    end
   },
   {
     "ggandor/leap.nvim",
@@ -62,7 +122,7 @@ lvim.plugins = {
   },
   {
     'mrcjkb/haskell-tools.nvim',
-    version = '^3', -- Recommended
+    version = '^4', -- Recommended
   },
   {
     'mg979/vim-visual-multi',
@@ -76,15 +136,6 @@ lvim.plugins = {
     end
   },
   {
-    'ribru17/bamboo.nvim'
-  },
-  {
-    'Mofiqul/dracula.nvim'
-  },
-  {
-    'shaunsingh/nord.nvim'
-  },
-  {
     'folke/trouble.nvim',
     cmd = "Trouble",
     opts = {}
@@ -95,178 +146,6 @@ lvim.plugins = {
       vim.keymap.set({ "v", "n" }, "<c-.>", require("actions-preview").code_actions)
     end,
   },
-  {
-    'ThePrimeagen/vim-be-good'
-  },
-  {
-    'iamcco/markdown-preview.nvim'
-  }
-}
-
-lvim.builtin.which_key.mappings["t"] = {
-  name = "Diagnostics",
-  t = { "<cmd>Trouble diagnostics<cr>", "trouble" },
-  w = { "<cmd>Trouble workspace_diagnostics<cr>", "workspace" },
-  d = { "<cmd>Trouble document_diagnostics<cr>", "document" },
-  q = { "<cmd>Trouble quickfix<cr>", "quickfix" },
-  l = { "<cmd>Trouble loclist<cr>", "loclist" },
-  r = { "<cmd>Trouble lsp_references<cr>", "references" },
-}
-
-vim.list_extend(lvim.lsp.automatic_configuration.skipped_servers, { "hls" })
-local nvim_lsp = require('lspconfig')
-nvim_lsp.hls.setup {
-  -- the output you get when runnning '/Users/hapqe/.ghcup/tmp/ghcup-ghc-9.8.2_cabal-3.10.3.0_hls-2.9.0.1' + your servers version!
-  -- todo: get the current version of each program using ghcup, like vscode does it as seen in vscode's extension log.
-  cmd = { "/Users/hapqe/.ghcup/tmp/ghcup-ghc-9.8.2_cabal-3.10.3.0_hls-2.9.0.1/haskell-language-server-9.8.2", "--lsp" },
-  on_attach = function(client, bufnr)
-    -- Keybindings and other configurations
-    -- Example keybinding:
-    local function buf_set_keymap(...) vim.api.nvim_buf_set_keymap(bufnr, ...) end
-    local opts = { noremap = true, silent = true }
-
-    buf_set_keymap('n', 'gd', '<Cmd>lua vim.lsp.buf.definition()<CR>', opts)
-    buf_set_keymap('n', 'gr', '<Cmd>lua vim.lsp.buf.references()<CR>', opts)
-
-    -- Keybinding: Show hover documentation with Shift+K
-    buf_set_keymap('n', 'K', '<Cmd>lua vim.lsp.buf.hover()<CR>', opts)
-  end,
-  settings = {
-    haskell = {
-      formattingProvider = "ormolu",
-    }
-  }
-}
-
--- enabling ctrl-l in the terminal!
-lvim.keys.term_mode["<C-l>"] = false
-lvim.keys.term_mode["gf"] = false
-
-
-
--- if you don't want all the parsers change this to a table of the ones you want
-lvim.builtin.treesitter.ensure_installed = {
-  "lua",
-  "rust",
-  "toml",
-}
-
-vim.list_extend(lvim.lsp.automatic_configuration.skipped_servers, { "rust_analyzer" })
-
-local mason_path = vim.fn.glob(vim.fn.stdpath "data" .. "/mason/")
-
-local codelldb_path = mason_path .. "bin/codelldb"
-local liblldb_path = mason_path .. "packages/codelldb/extension/lldb/lib/liblldb"
-local this_os = vim.loop.os_uname().sysname
-
--- The path in windows is different
-if this_os:find "Windows" then
-  codelldb_path = mason_path .. "packages\\codelldb\\extension\\adapter\\codelldb.exe"
-  liblldb_path = mason_path .. "packages\\codelldb\\extension\\lldb\\bin\\liblldb.dll"
-else
-  -- The liblldb extension is .so for linux and .dylib for macOS
-  liblldb_path = liblldb_path .. (this_os == "Linux" and ".so" or ".dylib")
-end
-
-pcall(function()
-  require("rust-tools").setup {
-    tools = {
-      executor = require("rust-tools/executors").termopen, -- can be quickfix or termopen
-      reload_workspace_from_cargo_toml = true,
-      runnables = {
-        use_telescope = true,
-      },
-      inlay_hints = {
-        auto = true,
-        only_current_line = false,
-        show_parameter_hints = false,
-        parameter_hints_prefix = "<-",
-        other_hints_prefix = "=>",
-        max_len_align = false,
-        max_len_align_padding = 1,
-        right_align = false,
-        right_align_padding = 7,
-        highlight = "Comment",
-      },
-      hover_actions = {
-        border = "rounded",
-      },
-      on_initialized = function()
-        vim.api.nvim_create_autocmd({ "BufWritePost", "BufEnter", "CursorHold", "InsertLeave" }, {
-          pattern = { "*.rs" },
-          callback = function()
-            local _, _ = pcall(vim.lsp.codelens.refresh)
-          end,
-        })
-      end,
-    },
-    dap = {
-      -- adapter= codelldb_adapter,
-      adapter = require("rust-tools.dap").get_codelldb_adapter(codelldb_path, liblldb_path),
-    },
-    server = {
-      on_attach = function(client, bufnr)
-        require("lvim.lsp").common_on_attach(client, bufnr)
-        local rt = require "rust-tools"
-        vim.keymap.set("n", "K", rt.hover_actions.hover_actions, { buffer = bufnr })
-      end,
-
-      capabilities = require("lvim.lsp").common_capabilities(),
-      settings = {
-        ["rust-analyzer"] = {
-          lens = {
-            enable = true,
-          },
-          checkOnSave = {
-            enable = true,
-            command = "clippy",
-          },
-        },
-      },
-    },
-  }
-end)
-
-lvim.builtin.dap.on_config_done = function(dap)
-  dap.adapters.codelldb = require("rust-tools.dap").get_codelldb_adapter(codelldb_path, liblldb_path)
-  dap.configurations.rust = {
-    {
-      name = "Launch file",
-      type = "codelldb",
-      request = "launch",
-      program = function()
-        return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/", "file")
-      end,
-      cwd = "${workspaceFolder}",
-      stopOnEntry = false,
-    },
-  }
-end
-
-vim.api.nvim_set_keymap("n", "<m-d>", "<cmd>RustOpenExternalDocs<Cr>", { noremap = true, silent = true })
-
-lvim.builtin.which_key.mappings["C"] = {
-  name = "Rust",
-  r = { "<cmd>RustRunnables<Cr>", "Runnables" },
-  t = { "<cmd>lua _CARGO_TEST()<cr>", "Cargo Test" },
-  m = { "<cmd>RustExpandMacro<Cr>", "Expand Macro" },
-  c = { "<cmd>RustOpenCargo<Cr>", "Open Cargo" },
-  p = { "<cmd>RustParentModule<Cr>", "Parent Module" },
-  d = { "<cmd>RustDebuggables<Cr>", "Debuggables" },
-  v = { "<cmd>RustViewCrateGraph<Cr>", "View Crate Graph" },
-  R = {
-    "<cmd>lua require('rust-tools/workspace_refresh')._reload_workspace_from_cargo_toml()<Cr>",
-    "Reload Workspace",
-  },
-  o = { "<cmd>RustOpenExternalDocs<Cr>", "Open External Docs" },
-  y = { "<cmd>lua require'crates'.open_repository()<cr>", "[crates] open repository" },
-  P = { "<cmd>lua require'crates'.show_popup()<cr>", "[crates] show popup" },
-  i = { "<cmd>lua require'crates'.show_crate_popup()<cr>", "[crates] show info" },
-  f = { "<cmd>lua require'crates'.show_features_popup()<cr>", "[crates] show features" },
-  D = { "<cmd>lua require'crates'.show_dependencies_popup()<cr>", "[crates] show dependencies" },
-}
-
-lvim.plugins = {
   "simrat39/rust-tools.nvim",
   {
     "saecki/crates.nvim",
@@ -285,9 +164,108 @@ lvim.plugins = {
     end,
   },
   {
-    "j-hui/fidget.nvim",
+    "karb94/neoscroll.nvim",
+    event = "WinScrolled",
     config = function()
-      require("fidget").setup()
-    end,
+      require('neoscroll').setup({
+        -- All these keys will be mapped to their corresponding default scrolling animation
+        mappings = { '<C-u>', '<C-d>', '<C-b>', '<C-f>',
+          '<C-y>', '<C-e>', 'zt', 'zz', 'zb' },
+        hide_cursor = true,          -- Hide cursor while scrolling
+        stop_eof = true,             -- Stop at <EOF> when scrolling downwards
+        use_local_scrolloff = false, -- Use the local scope of scrolloff instead of the global scope
+        respect_scrolloff = false,   -- Stop scrolling when the cursor reaches the scrolloff margin of the file
+        cursor_scrolls_alone = true, -- The cursor will keep on scrolling even if the window cannot scroll further
+        easing_function = nil,       -- Default easing function
+        pre_hook = nil,              -- Function to run before the scrolling animation starts
+        post_hook = nil,             -- Function to run after the scrolling animation ends
+      })
+    end
   },
+  {
+    "lewis6991/hover.nvim",
+    config = function()
+      require("hover").setup {
+        init = function()
+          -- Require providers
+          require("hover.providers.lsp")
+          -- require('hover.providers.gh')
+          -- require('hover.providers.gh_user')
+          -- require('hover.providers.jira')
+          -- require('hover.providers.dap')
+          -- require('hover.providers.fold_preview')
+          -- require('hover.providers.diagnostic')
+          -- require('hover.providers.man')
+          -- require('hover.providers.dictionary')
+        end,
+        preview_opts = {
+          border = 'single'
+        },
+        -- Whether the contents of a currently open hover window should be moved
+        -- to a :h preview-window when pressing the hover keymap.
+        preview_window = false,
+        title = true,
+        mouse_providers = {
+          'LSP'
+        },
+        mouse_delay = 1000
+      }
+
+      -- Setup keymaps
+      vim.keymap.set("n", "K", require("hover").hover, { desc = "hover.nvim" })
+      vim.keymap.set("n", "gK", require("hover").hover_select, { desc = "hover.nvim (select)" })
+      vim.keymap.set("n", "<C-p>", function() require("hover").hover_switch("previous") end,
+        { desc = "hover.nvim (previous source)" })
+      vim.keymap.set("n", "<C-n>", function() require("hover").hover_switch("next") end,
+        { desc = "hover.nvim (next source)" })
+
+      -- Mouse support
+      vim.keymap.set('n', '<MouseMove>', require('hover').hover_mouse, { desc = "hover.nvim (mouse)" })
+      vim.o.mousemoveevent = true
+    end
+  }
 }
+
+-- rust_analyzer
+-- jdtls
+-- are in the ftplugin folder, so they are manually configured
+vim.list_extend(lvim.lsp.automatic_configuration.skipped_servers, { "rust_analyzer", "jdtls" })
+
+lvim.builtin.which_key.mappings["t"] = {
+  name = "Diagnostics",
+  t = { "<cmd>Trouble diagnostics<cr>", "trouble" },
+  w = { "<cmd>Trouble workspace_diagnostics<cr>", "workspace" },
+  d = { "<cmd>Trouble document_diagnostics<cr>", "document" },
+  q = { "<cmd>Trouble quickfix<cr>", "quickfix" },
+  l = { "<cmd>Trouble loclist<cr>", "loclist" },
+  r = { "<cmd>Trouble lsp_references<cr>", "references" },
+}
+
+-- enabling ctrl-l in the terminal!
+lvim.keys.term_mode["<C-l>"] = false
+
+-- make gf work in the terminal
+lvim.keys.term_mode["gf"] = false
+
+-- scroll only one line at a time
+vim.cmd([[set mousescroll=ver:1,hor:1]])
+
+-- reverse scroll direction in the horizontal direction
+vim.api.nvim_set_keymap('n', '<ScrollWheelRight>', '1zh', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<ScrollWheelLeft>', '1zl', { noremap = true, silent = true })
+
+-- set the colorscheme
+lvim.colorscheme = 'rose-pine-moon';
+-- make the code lens a bit less vibrant
+vim.api.nvim_set_hl(0, 'LspCodeLens', { fg = '#2A2A2A', bg = 'NONE' })
+
+-- disable automatic comment continuation
+vim.cmd('autocmd BufEnter * set formatoptions-=cro')
+vim.cmd('autocmd BufEnter * setlocal formatoptions-=cro')
+
+-- Setup all the LSP servers that are currently not in the ftplugin folder
+local lspconfig = require("lspconfig")
+
+lspconfig.lua_ls.setup({})
+lspconfig.texlab.setup({})
+lspconfig.jedi_language_server.setup({})
